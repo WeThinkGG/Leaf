@@ -3,6 +3,9 @@ From: HaHaWTH <102713261+HaHaWTH@users.noreply.github.com>
 Date: Sun, 30 Jun 2024 00:35:19 +0800
 Subject: [PATCH] Linear region file format
 
+TODO: Need to check again after Paper released stable
+(Fix-World-isChunkGenerated-calls.patch, Attempt-to-recalculate-regionfile-header-if-it-is-co.patch, etc.)
+
 Original license: MIT
 Original project: https://github.com/LuminolMC/Luminol
 
