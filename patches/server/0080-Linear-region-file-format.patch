@@ -1,8 +1,15 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: HaHaWTH <102713261+HaHaWTH@users.noreply.github.com>
 Date: Sun, 30 Jun 2024 00:35:19 +0800
-Subject: [PATCH] Linear-region-file-format
+Subject: [PATCH] Linear region file format
 
+Original license: MIT
+Original project: https://github.com/LuminolMC/Luminol
+
+Linear is a region file format that uses ZSTD compression instead of
+ZLIB.
+This format saves about 50% of disk space.
+Documentation: https://github.com/xymb-endcrystalme/LinearRegionFileFormatTools
 
 diff --git a/build.gradle.kts b/build.gradle.kts
 index 49a3b6892b3e075f393e4ed8e4e0d5afc4798db5..d83e9365287a497a997cdb0e5d608635a739528c 100644
@@ -307,10 +314,10 @@ index e8f0f0e2b3afd305afb6cf4d41f4fc31bf2bc68d..6c565c70de9a63ba897e582425e775fb
                  } catch (final IOException ex) {
 diff --git a/src/main/java/org/dreeam/leaf/config/modules/misc/RegionFormatConfig.java b/src/main/java/org/dreeam/leaf/config/modules/misc/RegionFormatConfig.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9efa36f9a18fafceb4fb184380d73e4271659a4f
+index 0000000000000000000000000000000000000000..9510eccfae059f9f7499a6c4bdc2f7c36a3f7990
 --- /dev/null
 +++ b/src/main/java/org/dreeam/leaf/config/modules/misc/RegionFormatConfig.java
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,60 @@
 +package org.dreeam.leaf.config.modules.misc;
 +
 +import com.electronwill.nightconfig.core.file.CommentedFileConfig;
@@ -323,19 +330,11 @@ index 0000000000000000000000000000000000000000..9efa36f9a18fafceb4fb184380d73e42
 +import org.stupidcraft.linearpaper.region.EnumRegionFileExtension;
 +
 +public class RegionFormatConfig implements IConfigModule {
-+    @ConfigInfo(baseName = "region_format")
-+    public static String regionFormatTypeName = "MCA";
-+    @DoNotLoad
-+    public static EnumRegionFileExtension regionFormatType = EnumRegionFileExtension.LINEAR;
-+    @ConfigInfo(baseName = "linear_compress_level")
-+    public static int linearCompressionLevel = 1;
-+    @ConfigInfo(baseName = "thrown_on_unknown_extension_detected")
-+    public static boolean throwOnUnknownExtension = false;
-+    @ConfigInfo(baseName = "flush_interval_seconds")
-+    public static int linearFlushFrequency = 5;
 +
 +    @DoNotLoad
 +    private static final Logger logger = LogUtils.getLogger();
++    @DoNotLoad
++    public static EnumRegionFileExtension regionFormatType;
 +
 +    @Override
 +    public EnumConfigCategory getCategory() {
@@ -347,17 +346,28 @@ index 0000000000000000000000000000000000000000..9efa36f9a18fafceb4fb184380d73e42
 +        return "region_format_settings";
 +    }
 +
++    @ConfigInfo(baseName = "region-format", comments = "Available region formats: MCA, LINEAR")
++    public static String regionFormatTypeName = "MCA";
++    @ConfigInfo(baseName = "linear-compress-level")
++    public static int linearCompressionLevel = 1;
++    @ConfigInfo(baseName = "thrown-on-unknown-extension-detected")
++    public static boolean throwOnUnknownExtension = false;
++    @ConfigInfo(baseName = "flush-interval-seconds")
++    public static int linearFlushFrequency = 5;
++
 +    @Override
 +    public void onLoaded(CommentedFileConfig config) {
 +        config.setComment("misc.region_format_settings", """
 +                Linear is a region file format that uses ZSTD compression instead of
 +                ZLIB.
 +                This format saves about 50% of disk space.
-+                Documentation: https://github.com/xymb-endcrystalme/LinearRegionFileFormatTools
++                Read Documentation before using: https://github.com/xymb-endcrystalme/LinearRegionFileFormatTools
++                Disclaimer: This is a experimental feature, there is potential risk to lose chunk data.
 +                """);
++
 +        regionFormatType = EnumRegionFileExtension.fromName(regionFormatTypeName);
 +        if (regionFormatType == EnumRegionFileExtension.UNKNOWN) {
-+            logger.error("Unknown region file type {} ! Falling back to MCA file.", regionFormatTypeName);
++            logger.error("Unknown region file type {} ! Falling back to MCA format.", regionFormatTypeName);
 +            regionFormatType = EnumRegionFileExtension.MCA;
 +        }
 +
@@ -370,7 +380,7 @@ index 0000000000000000000000000000000000000000..9efa36f9a18fafceb4fb184380d73e42
 +}
 diff --git a/src/main/java/org/stupidcraft/linearpaper/region/EnumRegionFileExtension.java b/src/main/java/org/stupidcraft/linearpaper/region/EnumRegionFileExtension.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d4ce2d17a7ab258cac3b91065ab3f56fba20d1b1
+index 0000000000000000000000000000000000000000..ba3f8ff02beb3656d2341453566a32390f838744
 --- /dev/null
 +++ b/src/main/java/org/stupidcraft/linearpaper/region/EnumRegionFileExtension.java
 @@ -0,0 +1,56 @@
@@ -415,7 +425,7 @@ index 0000000000000000000000000000000000000000..d4ce2d17a7ab258cac3b91065ab3f56f
 +
 +    @Contract(pure = true)
 +    public static EnumRegionFileExtension fromExtension(@NotNull String name) {
-+        switch (name) {
++        switch (name.toLowerCase()) {
 +            case "mca" -> {
 +                return MCA;
 +            }
@@ -464,7 +474,7 @@ index 0000000000000000000000000000000000000000..17db1bd619bc417cbd034e204600abbc
 +}
 diff --git a/src/main/java/org/stupidcraft/linearpaper/region/IRegionFileFactory.java b/src/main/java/org/stupidcraft/linearpaper/region/IRegionFileFactory.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..08c9b5d31408ddcb9dce4244cae8dfb22c84d20a
+index 0000000000000000000000000000000000000000..13b537be2e28991345b249541270825bea85dcfb
 --- /dev/null
 +++ b/src/main/java/org/stupidcraft/linearpaper/region/IRegionFileFactory.java
 @@ -0,0 +1,52 @@
@@ -504,7 +514,7 @@ index 0000000000000000000000000000000000000000..08c9b5d31408ddcb9dce4244cae8dfb2
 +        switch (EnumRegionFileExtension.fromExtension(extensionName)) {
 +            case UNKNOWN -> {
 +                if (RegionFormatConfig.throwOnUnknownExtension) {
-+                    throw new IllegalArgumentException("Unknown region file extension for file: " + fullFileName +"!");
++                    throw new IllegalArgumentException("Unknown region file extension for file: " + fullFileName + "!");
 +                }
 +
 +                return new RegionFile(storageKey, path, directory, compressionFormat, dsync);
@@ -523,15 +533,16 @@ index 0000000000000000000000000000000000000000..08c9b5d31408ddcb9dce4244cae8dfb2
 \ No newline at end of file
 diff --git a/src/main/java/org/stupidcraft/linearpaper/region/LinearRegionFile.java b/src/main/java/org/stupidcraft/linearpaper/region/LinearRegionFile.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c141fc6e4f4ba9bb9971b4f33886ed206b768e86
+index 0000000000000000000000000000000000000000..95c119cb53477f89aa617b4813d40ab57da1962f
 --- /dev/null
 +++ b/src/main/java/org/stupidcraft/linearpaper/region/LinearRegionFile.java
-@@ -0,0 +1,294 @@
+@@ -0,0 +1,295 @@
 +package org.stupidcraft.linearpaper.region;
 +
 +import com.github.luben.zstd.ZstdInputStream;
 +import com.github.luben.zstd.ZstdOutputStream;
 +import com.mojang.logging.LogUtils;
++
 +import java.io.BufferedOutputStream;
 +import java.io.ByteArrayInputStream;
 +import java.io.ByteArrayOutputStream;
