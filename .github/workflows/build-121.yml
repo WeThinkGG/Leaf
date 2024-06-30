@@ -1,10 +1,10 @@
-name: Build Leaf 1.21
+name: Build Leaf 1.21 - linear dev
 
 on:
   push:
-    branches: [ "ver/1.21" ]
+    branches: [ "dev/linear-region-format" ]
   pull_request:
-    branches: [ "ver/1.21" ]
+    branches: [ "dev/linear-region-format" ]
 
 jobs:
   build:
@@ -51,12 +51,12 @@ jobs:
           name: Leaf 1.21
           path: ./leaf-1.21-*.jar
 
-      - name: Release Leaf
-        if: github.event_name != 'pull_request'
-        uses: marvinpinto/action-automatic-releases@master
-        with:
-          title: "Leaf 1.21"
-          automatic_release_tag: "ver-1.21"
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          files: "./leaf-1.21-*.jar"
-          prerelease: false
+#      - name: Release Leaf
+#        if: github.event_name != 'pull_request'
+#        uses: marvinpinto/action-automatic-releases@master
+#        with:
+#          title: "Leaf 1.21"
+#          automatic_release_tag: "ver-1.21"
+#          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+#          files: "./leaf-1.21-*.jar"
+#          prerelease: false
